@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { formatCurrency, getStatusLabel } from "@/lib/utils";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+const reportTypes = [
+  { key: "revenue", label: "Omzet" },
+  { key: "services", label: "Servis" },
+  { key: "inventory", label: "Stok" },
+  { key: "mechanics", label: "Mekanik" },
+];
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState("revenue");
@@ -14,34 +19,39 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-
-  useEffect(() => { fetchReport(); }, [reportType, from, to]);
+  const [error, setError] = useState(false);
 
   async function fetchReport() {
     setLoading(true);
-    const params = new URLSearchParams({ type: reportType });
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
-    const res = await fetch(`/api/reports?${params}`);
-    const result = await res.json();
-    setData(Array.isArray(result) ? result : []);
-    setLoading(false);
+    setError(false);
+    try {
+      const params = new URLSearchParams({ type: reportType });
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const res = await fetch(`/api/reports?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      setData(Array.isArray(result) ? result : []);
+    } catch {
+      setError(true);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const reportTypes = [
-    { key: "revenue", label: "Omzet" },
-    { key: "services", label: "Servis" },
-    { key: "inventory", label: "Stok" },
-    { key: "mechanics", label: "Mekanik" },
-  ];
-
   function renderTable() {
+    if (error) {
+      return <p className="text-center py-8 text-gray-500">Gagal memuat laporan. Pastikan database sudah tersambung.</p>;
+    }
+
     switch (reportType) {
       case "revenue":
         return (
           <Table loading={loading} data={data}
+            emptyMessage="Belum ada data pembayaran."
             columns={[
-              { key: "id", label: "No. WO", render: (p: any) => p.workOrder?.orderNumber || "-" },
+              { key: "workOrder", label: "No. WO", render: (p: any) => p.workOrder?.orderNumber || "-" },
               { key: "amount", label: "Jumlah", render: (p: any) => formatCurrency(p.amount) },
               { key: "method", label: "Metode" },
               { key: "createdAt", label: "Tanggal", render: (p: any) => new Date(p.createdAt).toLocaleDateString("id-ID") },
@@ -51,6 +61,7 @@ export default function ReportsPage() {
       case "services":
         return (
           <Table loading={loading} data={data}
+            emptyMessage="Belum ada data servis."
             columns={[
               { key: "orderNumber", label: "No. WO" },
               { key: "customerName", label: "Pelanggan" },
@@ -62,6 +73,7 @@ export default function ReportsPage() {
       case "inventory":
         return (
           <Table loading={loading} data={data}
+            emptyMessage="Belum ada aktivitas stok."
             columns={[
               { key: "inventory", label: "Barang", render: (l: any) => l.inventory?.name || "-" },
               { key: "type", label: "Tipe", render: (l: any) => l.type === "IN" ? "Masuk" : "Keluar" },
@@ -73,6 +85,7 @@ export default function ReportsPage() {
       case "mechanics":
         return (
           <Table loading={loading} data={data}
+            emptyMessage="Belum ada data mekanik."
             columns={[
               { key: "name", label: "Nama" },
               { key: "email", label: "Email" },
@@ -100,13 +113,12 @@ export default function ReportsPage() {
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1.5 text-sm" />
         <span className="text-gray-500">-</span>
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1.5 text-sm" />
+        <Button size="sm" onClick={fetchReport}>Tampilkan</Button>
       </div>
 
       <Card>
         <CardHeader><CardTitle className="capitalize">Laporan {reportType}</CardTitle></CardHeader>
-        <CardContent>
-          {renderTable()}
-        </CardContent>
+        <CardContent>{renderTable()}</CardContent>
       </Card>
     </div>
   );
