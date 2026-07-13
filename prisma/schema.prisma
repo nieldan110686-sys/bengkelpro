@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USER & AUTH ────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  role      Role     @default(STAFF)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workOrders     WorkOrder[]     @relation("AssignedMechanic")
+  createdOrders  WorkOrder[]     @relation("CreatedBy")
+  inventoryLogs  InventoryLog[]
+  sessions       Session[]
+  commissionRates CommissionRate[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("sessions")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MECHANIC
+  CASHIER
+  STAFF
+}
+
+// ─── BRANCH ─────────────────────────────────────────────
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  workOrders  WorkOrder[]
+  inventory   Inventory[]
+  transactions Transaction[]
+
+  @@map("branches")
+}
+
+// ─── CUSTOMER ───────────────────────────────────────────
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vehicles Vehicle[]
+  bookings Booking[]
+
+  @@map("customers")
+}
+
+// ─── VEHICLE ────────────────────────────────────────────
+model Vehicle {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  brand       String   // merek: Toyota, Honda, etc.
+  model       String   // model: Avanza, Civic, etc.
+  year        Int
+  plateNumber String   @unique @map("plate_number") // nomor polisi
+  vin         String?  @unique // nomor rangka
+  color       String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workOrders WorkOrder[]
+
+  @@map("vehicles")
+}
+
+// ─── WORK ORDER / JOB CARD ─────────────────────────────
+model WorkOrder {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique @map("order_number") // WO-20260714-001
+  vehicleId     String   @map("vehicle_id")
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id])
+  customerName  String   @map("customer_name") // denormalized for speed
+  customerPhone String?  @map("customer_phone")
+  mechanicId    String?  @map("mechanic_id")
+  mechanic      User?    @relation("AssignedMechanic", fields: [mechanicId], references: [id])
+  createdById   String   @map("created_by_id")
+  createdBy     User     @relation("CreatedBy", fields: [createdById], references: [id])
+  branchId      String?  @map("branch_id")
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  status        WOStatus @default(NEW)
+  description   String   // keluhan / deskripsi servis
+  notes         String?   // catatan internal mekanik
+  mileage       Int?      // km kendaraan saat masuk
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  items    WorkOrderItem[]
+  invoice  Invoice?
+  payments Payment[]
+
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id          String   @id @default(cuid())
+  workOrderId String   @map("work_order_id")
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  type        ItemType           // SERVICE atau PART
+  name        String             // nama jasa/sparepart
+  description String?
+  quantity    Int     @default(1)
+  unitPrice   Float   @map("unit_price")
+  totalPrice  Float   @map("total_price")
+  inventoryId String? @map("inventory_id") // link ke sparepart jika type=PART
+  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
+  mechanicId  String? @map("mechanic_id")
+  mechanic    User?   @relation(fields: [mechanicId], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("work_order_items")
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  workOrderId String    @map("work_order_id")
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  amount      Float
+  method      PaymentMethod
+  reference   String?   // nomor referensi transfer/QRIS
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("payments")
+}
+
+enum WOStatus {
+  NEW        // Baru Masuk
+  ESTIMATED  // Estimasi
+  IN_PROGRESS // Dalam Proses
+  COMPLETED  // Selesai
+  DELIVERED  // Diambil
+  CANCELLED  // Dibatalkan
+}
+
+enum ItemType {
+  SERVICE
+  PART
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+}
+
+// ─── INVOICE ────────────────────────────────────────────
+model Invoice {
+  id          String    @id @default(cuid())
+  workOrderId String    @unique @map("work_order_id")
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  invoiceNumber String  @unique @map("invoice_number") // INV-20260714-001
+  status      InvoiceStatus @default(UNPAID)
+  subtotal    Float
+  tax         Float    @default(0)
+  discount    Float    @default(0)
+  total       Float
+  paid        Float    @default(0)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+// ─── INVENTORY / SPAREPART ─────────────────────────────
+model Inventory {
+  id            String   @id @default(cuid())
+  code          String   @unique // kode barang: SP-001
+  name          String
+  category      String?  // oli, filter, kampas, ban, aki, etc.
+  brand         String?
+  unit          String   @default("pcs") // pcs, liter, set
+  stock         Int      @default(0)
+  minStock      Int      @default(5) @map("min_stock")
+  buyPrice      Float    @map("buy_price")
+  sellPrice     Float    @map("sell_price")
+  location      String?  // rak/lokasi
+  notes         String?
+  branchId      String?  @map("branch_id")
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  logs          InventoryLog[]
+  workOrderItems WorkOrderItem[]
+
+  @@map("inventory")
+}
+
+model InventoryLog {
+  id          String   @id @default(cuid())
+  inventoryId String   @map("inventory_id")
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  type        StockType  // IN, OUT
+  quantity    Int
+  beforeStock Int       @map("before_stock")
+  afterStock  Int       @map("after_stock")
+  reference   String?   // WO number, purchase ref, etc.
+  notes       String?
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("inventory_logs")
+}
+
+enum StockType {
+  IN
+  OUT
+}
+
+// ─── BOOKING ────────────────────────────────────────────
+model Booking {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicleInfo String   @map("vehicle_info") // deskripsi kendaraan
+  date        DateTime // tanggal booking
+  timeSlot    String?  @map("time_slot") // 09:00-11:00
+  description String?  // keluhan
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ARRIVED
+  CANCELLED
+  COMPLETED
+}
+
+// ─── COMMISSION ─────────────────────────────────────────
+model CommissionRate {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       CommissionType
+  servicePercent Float? @map("service_percent") // % komisi dari jasa servis
+  partPercent    Float? @map("part_percent")    // % komisi dari sparepart
+  minPayout  Float   @default(0) @map("min_payout")
+  active     Boolean @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("commission_rates")
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+}
+
+// ─── TRANSACTION ────────────────────────────────────────
+model Transaction {
+  id        String   @id @default(cuid())
+  branchId  String   @map("branch_id")
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  date      DateTime @default(now())
+  type      TransactionType
+  amount    Float
+  category  String?  // servis, sparepart, operasional, gaji, dll
+  reference String?  // WO number, invoice number
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("transactions")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  action    String   // CREATE, UPDATE, DELETE
+  entity    String   // model name
+  entityId  String   @map("entity_id")
+  changes   String?  // JSON string of changes
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
