@@ -69,19 +69,9 @@ export async function getAuthCookie(): Promise<string | undefined> {
 }
 
 /**
- * AUTH_BYPASS — set to true to skip all authentication checks.
- * Used when middleware is disabled.
- */
-let AUTH_BYPASS = true;//process.env.NODE_ENV !== "production";
-
-/**
  * Server-side auth check for API routes and pages.
- * Works in both Node.js runtime (cookies()) and Edge runtime (NextRequest).
  */
 export async function getAuthUser(req?: NextRequest): Promise<JWTPayload | null> {
-  if (AUTH_BYPASS) {
-    return { userId: "bypass", email: "bypass@local", role: "OWNER", name: "Dev User", branchId: null };
-  }
   const token = req
     ? req.cookies.get(COOKIE_NAME)?.value
     : await getAuthCookie();
