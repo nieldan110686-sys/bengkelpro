@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAuthUser, authError } from "@/lib/api-helpers";
+import { getAuthUser, authError } from "@/lib/auth";
 import { customerSchema } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {

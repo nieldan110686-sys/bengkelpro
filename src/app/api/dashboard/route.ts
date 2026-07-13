@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAuthUser, authError } from "@/lib/api-helpers";
+import { getAuthUser, authError } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);

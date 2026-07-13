@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAuthUser, authError } from "@/lib/api-helpers";
+import { getAuthUser, authError } from "@/lib/auth";
 import { workOrderSchema } from "@/lib/validations";
 import { generateOrderNumber } from "@/lib/utils";
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getAuthUser, authError } from "@/lib/api-helpers";
+import { getAuthUser, authError } from "@/lib/auth";
 import { workOrderItemSchema } from "@/lib/validations";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

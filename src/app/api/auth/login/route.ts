@@ -6,18 +6,33 @@ import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Parse body
     const body = await req.json();
+
+    // 2. Validate input
     const validated = loginSchema.safeParse(body);
     if (!validated.success) {
-      return NextResponse.json(
-        { error: validated.error.flatten().fieldErrors },
-        { status: 400 }
-      );
+      const errors = validated.error.flatten().fieldErrors;
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
 
     const { email, password } = validated.data;
-    const user = await prisma.user.findUnique({ where: { email } });
 
+    // 3. Find user by email (email is @unique in schema)
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        role: true,
+        branchId: true,
+        active: true,
+      },
+    });
+
+    // 4. User not found OR inactive → same error message (security best practice)
     if (!user || !user.active) {
       return NextResponse.json(
         { error: "Email atau password salah" },
@@ -25,6 +40,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 5. Verify password
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       return NextResponse.json(
@@ -33,9 +49,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 6. Create JWT token
     const token = await createToken(user);
+
+    // 7. Set HTTP-only cookie
     await setAuthCookie(token);
 
+    // 8. Return user data (NEVER include password)
     return NextResponse.json({
       user: {
         id: user.id,
@@ -47,6 +67,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server. Silakan coba lagi." },
+      { status: 500 }
+    );
   }
 }
