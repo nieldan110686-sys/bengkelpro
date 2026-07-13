@@ -21,11 +21,12 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  workOrders     WorkOrder[]     @relation("AssignedMechanic")
-  createdOrders  WorkOrder[]     @relation("CreatedBy")
-  inventoryLogs  InventoryLog[]
-  sessions       Session[]
-  commissionRates CommissionRate[]
+  workOrders         WorkOrder[]     @relation("AssignedMechanic")
+  createdOrders      WorkOrder[]     @relation("CreatedBy")
+  assignedItems      WorkOrderItem[] @relation("WorkOrderItemMechanic")
+  inventoryLogs      InventoryLog[]
+  sessions           Session[]
+  commissionRates     CommissionRate[]
 
   @@map("users")
 }
@@ -147,7 +148,7 @@ model WorkOrderItem {
   inventoryId String? @map("inventory_id") // link ke sparepart jika type=PART
   inventory   Inventory? @relation(fields: [inventoryId], references: [id])
   mechanicId  String? @map("mechanic_id")
-  mechanic    User?   @relation(fields: [mechanicId], references: [id])
+  mechanic    User?   @relation("WorkOrderItemMechanic", fields: [mechanicId], references: [id])
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("work_order_items")
