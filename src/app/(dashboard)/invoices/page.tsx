@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { Table, Pagination } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getStatusColor, getStatusLabel, formatCurrency } from "@/lib/utils";
+import ThermalInvoice from "@/components/shared/thermal-invoice";
 import toast from "react-hot-toast";
 
 interface Invoice {
@@ -52,6 +53,32 @@ export default function InvoicesPage() {
     setPayModal(false); setSaving(false); viewDetail(selectedInvoice.id); fetchData();
   }
 
+  // Build thermal invoice data
+  const thermalData = selectedInvoice ? {
+    invoiceNumber: selectedInvoice.invoiceNumber,
+    orderNumber: selectedInvoice.workOrder?.orderNumber || "-",
+    customerName: selectedInvoice.workOrder?.customerName || "-",
+    vehicleInfo: selectedInvoice.workOrder?.vehicle
+      ? `${selectedInvoice.workOrder.vehicle.brand} ${selectedInvoice.workOrder.vehicle.model} (${selectedInvoice.workOrder.vehicle.plateNumber})`
+      : "-",
+    items: selectedInvoice.workOrder?.items?.map((it: any) => ({
+      name: it.name,
+      type: it.type,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      totalPrice: it.totalPrice,
+    })) || [],
+    subtotal: selectedInvoice.subtotal,
+    discount: selectedInvoice.discount || 0,
+    total: selectedInvoice.total,
+    paid: selectedInvoice.paid,
+    status: selectedInvoice.status,
+    payments: selectedInvoice.workOrder?.payments || [],
+    mechanicName: selectedInvoice.workOrder?.mechanic?.name || "-",
+    date: selectedInvoice.createdAt || new Date(),
+    notes: selectedInvoice.notes || null,
+  } : null;
+
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold">Invoice</h1><p className="text-gray-500 mt-1">Kelola invoice & pembayaran</p></div>
@@ -87,6 +114,14 @@ export default function InvoicesPage() {
               <div className="flex justify-between font-bold text-red-600"><span>Sisa</span><span>{formatCurrency(selectedInvoice.total - selectedInvoice.paid)}</span></div>
               <Badge className={getStatusColor(selectedInvoice.status)}>{getStatusLabel(selectedInvoice.status)}</Badge>
               {selectedInvoice.status !== "PAID" && <Button className="w-full mt-3" onClick={openPayModal}>Bayar</Button>}
+
+              {/* Print button */}
+              {thermalData && (
+                <div className="mt-2">
+                  <ThermalInvoice data={thermalData} />
+                </div>
+              )}
+
               {selectedInvoice.workOrder?.payments?.length > 0 && (
                 <div className="mt-3">
                   <h4 className="font-medium text-xs uppercase text-gray-500 mb-2">Riwayat Pembayaran</h4>

@@ -28,8 +28,10 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.4.1",
+    "react-to-print": "^3.3.0",
     "recharts": "^2.13.2",
     "tailwind-merge": "^2.5.5",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

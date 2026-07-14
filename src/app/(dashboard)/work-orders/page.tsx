@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { Table, Pagination } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export default function WorkOrdersPage() {
   const [mechanics, setMechanics] = useState<any[]>([]);
   const [form, setForm] = useState({ vehicleId: "", customerName: "", customerPhone: "", mechanicId: "", description: "", notes: "", mileage: "" });
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => { fetchData(); fetchVehicles(); fetchMechanics(); }, [page]);
 
@@ -58,13 +59,33 @@ export default function WorkOrdersPage() {
     if (v) setForm({ ...form, vehicleId: vId, customerName: v.customer?.name || "", customerPhone: v.customer?.phone || "" });
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/export?type=work-orders");
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "bengkelpro-work-orders.xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Work Orders diexport ke Excel");
+    } catch { toast.error("Gagal export"); }
+    finally { setExporting(false); }
+  }
+
   const statusFlow = ["NEW", "ESTIMATED", "IN_PROGRESS", "COMPLETED", "DELIVERED"];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Work Order</h1><p className="text-gray-500 mt-1">Kelola servis & antrian bengkel</p></div>
-        <Button onClick={openCreate}><Plus className="w-4 h-4" />Work Order Baru</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={exporting}>
+            <Download className="w-4 h-4" />{exporting ? "Export..." : "Export Excel"}
+          </Button>
+          <Button onClick={openCreate}><Plus className="w-4 h-4" />WO Baru</Button>
+        </div>
       </div>
       <Card>
         <CardContent className="p-0">

@@ -4,11 +4,12 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, Car, Wrench, Package, UserCog, FileText,
-  BarChart3, Settings, LogOut, Menu, X, ChevronDown, Sun, Moon,
+  BarChart3, Settings, LogOut, Menu, Bell, Sun, Moon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useNotifications } from "@/hooks/use-notifications";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -24,12 +25,32 @@ const navItems = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useTheme();
+  const { notifications, unreadCount, markAllRead, clearNotifications } = useNotifications();
+
+  // Close notification panel on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   async function signOut() {
     await fetch("/api/auth/signout", { method: "POST" });
     window.location.href = "/login";
   }
+
+  const notifIcons: Record<string, string> = {
+    low_stock: "⚠️",
+    new_wo: "🔧",
+    wo_completed: "✅",
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -100,6 +121,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           <div className="flex items-center gap-3 ml-auto">
+            {/* Notification Bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) markAllRead(); }}
+                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown */}
+              {notifOpen && (
+                <div className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                    <span className="font-semibold text-sm">Notifikasi</span>
+                    {notifications.length > 0 && (
+                      <button onClick={clearNotifications} className="text-xs text-gray-400 hover:text-gray-600">
+                        Hapus semua
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-6">Tidak ada notifikasi</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <Link
+                        key={n.id}
+                        href={n.link || "#"}
+                        onClick={() => setNotifOpen(false)}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-50 dark:border-gray-700/50"
+                      >
+                        <span className="text-lg flex-shrink-0 mt-0.5">{notifIcons[n.type] || "📌"}</span>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{n.message}</p>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
