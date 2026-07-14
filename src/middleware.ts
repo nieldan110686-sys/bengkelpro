@@ -7,8 +7,10 @@ const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "bengkelpro-auth";
 const PUBLIC_PATHS = [
   "/login",
   "/register",
+  "/tracking",
   "/api/auth/login",
   "/api/auth/register",
+  "/api/tracking",
 ];
 
 export async function middleware(request: NextRequest) {
