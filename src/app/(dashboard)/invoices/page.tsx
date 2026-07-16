@@ -8,6 +8,7 @@ import { Table, Pagination } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getStatusColor, getStatusLabel, formatCurrency } from "@/lib/utils";
 import ThermalInvoice from "@/components/shared/thermal-invoice";
+import PrintButtons from "@/components/shared/print-buttons";
 import toast from "react-hot-toast";
 
 interface Invoice {
@@ -115,10 +116,11 @@ export default function InvoicesPage() {
               <Badge className={getStatusColor(selectedInvoice.status)}>{getStatusLabel(selectedInvoice.status)}</Badge>
               {selectedInvoice.status !== "PAID" && <Button className="w-full mt-3" onClick={openPayModal}>Bayar</Button>}
 
-              {/* Print button */}
-              {thermalData && (
-                <div className="mt-2">
-                  <ThermalInvoice data={thermalData} />
+              {/* PDF & Print buttons */}
+              {selectedInvoice && (
+                <div className="mt-3 space-y-2">
+                  <PrintButtons invoiceId={selectedInvoice.id} workOrderId={selectedInvoice.workOrderId} />
+                  {thermalData && <ThermalInvoice data={thermalData} />}
                 </div>
               )}
 

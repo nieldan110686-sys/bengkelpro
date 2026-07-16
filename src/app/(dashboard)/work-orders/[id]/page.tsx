@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Printer, Receipt } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Printer, Receipt, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { getStatusColor, getStatusLabel, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import ThermalInvoice from "@/components/shared/thermal-invoice";
+import PrintButtons from "@/components/shared/print-buttons";
 import { useReactToPrint } from "react-to-print";
 import toast from "react-hot-toast";
 
@@ -139,10 +140,18 @@ export default function WorkOrderDetailPage() {
             <p className="text-sm text-gray-500">{formatDate(wo.createdAt)}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => handlePrintJobCard()}>
-            <Printer className="w-4 h-4" /> Print Job Card
-          </Button>
+        <div className="flex gap-2 flex-wrap">
+          <PrintButtons workOrderId={id} invoiceId={wo.invoice?.id} />
+          {wo.customerPhone && (
+            <Button variant="ghost" size="sm" onClick={() => {
+              fetch("/api/notifications/whatsapp", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "status_update", workOrderId: id }),
+              }).then(r => r.json()).then(d => toast.success(d.method === "fallback" ? "WA dikirim (console)" : "WA terkirim!"));
+            }}>
+              <Send className="w-4 h-4" /> WA
+            </Button>
+          )}
           {!wo.invoice && wo.items?.length > 0 && (
             <Button size="sm" onClick={generateInvoice}>
               <Receipt className="w-4 h-4" /> Buat Invoice
