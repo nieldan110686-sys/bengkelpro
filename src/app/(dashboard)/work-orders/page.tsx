@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Columns, List, GripVertical } from "lucide-react";
+import { Plus, Download, Columns, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getStatusColor, getStatusLabel } from "@/lib/utils";
 import {
   DndContext, closestCorners, PointerSensor, useSensor, useSensors,
@@ -64,23 +65,36 @@ export default function WorkOrdersPage() {
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [modalOpen, setModalOpen] = useState(false);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [mechanics, setMechanics] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({ vehicleId: "", customerName: "", customerPhone: "", mechanicId: "", description: "", notes: "", mileage: "" });
   const [saving, setSaving] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  useEffect(() => { fetchData(); fetchVehicles(); }, []);
+  useEffect(() => { fetchData(); fetchVehicles(); fetchMechanics(); }, []);
 
   async function fetchData() {
     setLoading(true);
-    const res = await fetch("/api/work-orders?limit=100");
-    if (res.ok) setWorkOrders((await res.json()).workOrders);
+    try {
+      const res = await fetch("/api/work-orders?limit=100");
+      if (res.ok) setWorkOrders((await res.json()).workOrders);
+    } catch {}
     setLoading(false);
   }
 
   async function fetchVehicles() {
-    const res = await fetch("/api/vehicles?limit=100");
-    if (res.ok) setVehicles((await res.json()).vehicles);
+    try {
+      const res = await fetch("/api/vehicles?limit=100");
+      if (res.ok) setVehicles((await res.json()).vehicles);
+    } catch {}
+  }
+
+  async function fetchMechanics() {
+    try {
+      const res = await fetch("/api/mechanics");
+      if (res.ok) setMechanics(Array.isArray(await res.json()) ? await res.json() : []);
+    } catch {}
   }
 
   async function handleSave(e: React.FormEvent) {

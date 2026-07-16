@@ -38,13 +38,19 @@ export default function WorkOrderDetailPage() {
 
   const id = params.id as string;
 
-  useEffect(() => { if (id) fetchWO(); fetchMechanics(); fetchInventory(); }, [id]);
+  useEffect(() => {
+    if (!id) return;
+    // Parallelize all fetches
+    Promise.all([fetchWO(), fetchMechanics(), fetchInventory()]);
+  }, [id]);
 
   async function fetchWO() {
-    const res = await fetch(`/api/work-orders/${id}`);
-    if (!res.ok) { setLoading(false); return; }
-    const data = await res.json();
-    setWO(data); setNotes(data.notes || ""); setLoading(false);
+    try {
+      const res = await fetch(`/api/work-orders/${id}`);
+      if (!res.ok) { setLoading(false); return; }
+      const data = await res.json();
+      setWO(data); setNotes(data.notes || ""); setLoading(false);
+    } catch { setLoading(false); }
   }
 
   async function fetchMechanics() {
@@ -53,7 +59,7 @@ export default function WorkOrderDetailPage() {
   }
 
   async function fetchInventory() {
-    const res = await fetch("/api/inventory?limit=200");
+    const res = await fetch("/api/inventory?limit=500");
     if (res.ok) setInventory((await res.json()).inventory || []);
   }
 
